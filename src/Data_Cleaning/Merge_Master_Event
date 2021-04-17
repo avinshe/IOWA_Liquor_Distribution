@@ -1,0 +1,267 @@
+original_file <- 'C:/Users/kinja/OneDrive/Desktop/All/2. SEM2/DPA/Project/Final_datasets/Primary_dataset/Iowa_Liquor_Sales.csv'
+original_df <- read.csv(original_file)
+
+df <- original_df
+
+
+##############################################################################################################
+master_file <- 'C:/Users/kinja/OneDrive/Desktop/All/2. SEM2/DPA/Project/Final_datasets/Master_data/Master_Data_Stores_final_version.csv'
+master_df <- read.csv(master_file)
+
+
+names(df)[names(df) == "Store.Number"] <- "Store_Number"
+names(master_df)[names(master_df) == "Store.Number"] <- "mdf_Store_Number" 
+names(master_df)[names(master_df) == "Address"] <- "mdf_Address" 
+names(master_df)[names(master_df) == "Address"] <- "mdf_Address" 
+names(master_df)[names(master_df) == "Zip.Code"] <- "mdf_Zip_Code" 
+names(master_df)[names(master_df) == "City"] <- "mdf_City" 
+names(master_df)[names(master_df) == "County"] <- "mdf_County" 
+names(master_df)[names(master_df) == "lat"] <- "mdf_lat" 
+names(master_df)[names(master_df) == "lon"] <- "mdf_lon" 
+names(master_df)[names(master_df) == "mdf_Store_Number"] <- "Store_Number" 
+
+colnames(df)
+colnames(master_df)
+library(dplyr)
+temp <- left_join(master_df,df,by= "Store_Number")
+
+
+#df[df$Category.Name == '',c('Category.Name', 'Item.Description')] %>% 
+#  inner_join(df_map,  by = "Item.Description") %>% 
+#  mutate(category = .$Category.Name.y) %>% 
+#  select(category, Item.Description) 
+
+
+temp_col <- c("Store_Number", "mdf_Address", "mdf_Zip_Code", "mdf_City", "mdf_County",
+              "mdf_lat", "mdf_lon", "Invoice.Item.Number", "Date", "Store.Name",
+              "Category", "Category.Name", "Vendor.Number", "Vendor.Name", "Item.Number",
+              "Item.Description", "Pack", "Bottle.Volume..ml.", "State.Bottle.Cost",
+              "State.Bottle.Retail", "Bottles.Sold", "Sale..Dollars.", "Volume.Sold..Liters.",
+              "Volume.Sold..Gallons.")
+
+temp1 <- temp %>%
+  select(temp_col)
+
+
+#merge_1 <- "C:/Users/kinja/OneDrive/Desktop/All/PatentAnalysis/merge1.xlsx"
+#install.packages("openxlsx")
+#library("openxlsx")
+#wb <- createWorkbook()
+#addWorksheet(wb, "Worksheet 1")
+#writeData(wb,sheet = 1, x = temp1)
+#saveWorkbook(wb, file = merge_1, overwrite = TRUE)
+#install.packages("xlsx")
+
+library(xlsx) 
+events_file <- 'C:/Users/kinja/OneDrive/Desktop/All/2. SEM2/DPA/Project/Final_datasets/Secondary_data/Events_data.xlsx'
+events_df <- read.xlsx(events_file, sheetIndex = 1) 
+
+head(temp1$Date)
+
+temp1$Date <- as.Date(temp1$Date, format = "%m/%d/%Y")
+
+head(temp1$Date)
+head(events_df$Date)
+
+colnames(events_df)
+
+all_events_col <- c("Store_Number", "mdf_Address", "mdf_Zip_Code", "mdf_City", "mdf_County",
+                    "mdf_lat", "mdf_lon", "Invoice.Item.Number", "Date", "Store.Name",
+                    "Category", "Category.Name", "Vendor.Number", "Vendor.Name", "Item.Number",
+                    "Item.Description", "Pack", "Bottle.Volume..ml.", "State.Bottle.Cost",
+                    "State.Bottle.Retail", "Bottles.Sold", "Sale..Dollars.", "Volume.Sold..Liters.",
+                    "Volume.Sold..Gallons.", "Day_of_the_week","Name", "Type", "Details", "iteration")
+
+event_all <- left_join(temp1, events_df,by= "Date") %>%
+  select(all_events_col)
+
+
+events_file <- 'C:/Users/kinja/OneDrive/Desktop/All/2. SEM2/DPA/Project/Final_datasets/Secondary_data/all_event_data.xlsx'
+
+
+#install.packages("openxlsx")
+library("openxlsx")
+
+wb <- createWorkbook()
+addWorksheet(wb, "Worksheet 1")
+writeData(wb,sheet = 1, x = event_all)
+saveWorkbook(wb, file = events_file, overwrite = TRUE)
+
+##############################################################################################################
+#Merge and save files:
+
+original_file <- 'C:/Users/kinja/OneDrive/Desktop/All/2. SEM2/DPA/Project/Final_datasets/Primary_dataset/Iowa_Liquor_Sales.csv'
+original_df <- read.csv(original_file)
+
+df <- original_df
+
+master_file <- 'C:/Users/kinja/OneDrive/Desktop/All/2. SEM2/DPA/Project/Final_datasets/Master_data/Master_Data_Stores_final_version.csv'
+master_df <- read.csv(master_file)
+
+
+names(df)[names(df) == "Store.Number"] <- "Store_Number"
+names(master_df)[names(master_df) == "Store.Number"] <- "Store_Number" 
+names(master_df)[names(master_df) == "Address"] <- "mdf_Address" 
+names(master_df)[names(master_df) == "Address"] <- "mdf_Address" 
+names(master_df)[names(master_df) == "Zip.Code"] <- "mdf_Zip_Code" 
+names(master_df)[names(master_df) == "City"] <- "mdf_City" 
+names(master_df)[names(master_df) == "County"] <- "mdf_County" 
+names(master_df)[names(master_df) == "lat"] <- "mdf_lat" 
+names(master_df)[names(master_df) == "lon"] <- "mdf_lon" 
+
+library(dplyr)
+
+temp_col <- c("Store_Number", "mdf_Address", "mdf_Zip_Code", "mdf_City", "mdf_County",
+              "mdf_lat", "mdf_lon", "Invoice.Item.Number", "Date", "Store.Name",
+              "Category", "Category.Name", "Vendor.Number", "Vendor.Name", "Item.Number",
+              "Item.Description", "Pack", "Bottle.Volume..ml.", "State.Bottle.Cost",
+              "State.Bottle.Retail", "Bottles.Sold", "Sale..Dollars.", "Volume.Sold..Liters.",
+              "Volume.Sold..Gallons.")
+
+temp <- left_join(master_df,df,by= "Store_Number")
+
+temp1 <- temp %>%
+  select(temp_col)
+
+
+master_all_file <- 'C:/Users/kinja/OneDrive/Desktop/All/2. SEM2/DPA/Project/Final_datasets/all_master_dt.csv'
+
+
+write.csv(temp1, master_all_file, row.names = TRUE)
+
+
+#install.packages("openxlsx")
+library("openxlsx")
+
+wb <- createWorkbook()
+addWorksheet(wb, "Worksheet 1")
+writeData(wb,sheet = 1, x = temp1)
+saveWorkbook(wb, file = master_all_file, overwrite = TRUE)
+
+##################################################################################################################
+
+original_file <- 'C:/Users/kinja/OneDrive/Desktop/All/2. SEM2/DPA/Project/Final_datasets/Primary_dataset/Iowa_Liquor_Sales.csv'
+original_df <- read.csv(original_file)
+
+df <- original_df
+
+master_file <- 'C:/Users/kinja/OneDrive/Desktop/All/2. SEM2/DPA/Project/Final_datasets/Master_data/Master_Data_Stores_final_version.csv'
+master_df <- read.csv(master_file)
+
+
+names(df)[names(df) == "Store.Number"] <- "Store_Number"
+names(master_df)[names(master_df) == "Store.Number"] <- "Store_Number" 
+names(master_df)[names(master_df) == "Address"] <- "mdf_Address" 
+names(master_df)[names(master_df) == "Address"] <- "mdf_Address" 
+names(master_df)[names(master_df) == "Zip.Code"] <- "mdf_Zip_Code" 
+names(master_df)[names(master_df) == "City"] <- "mdf_City" 
+names(master_df)[names(master_df) == "County"] <- "mdf_County" 
+names(master_df)[names(master_df) == "lat"] <- "mdf_lat" 
+names(master_df)[names(master_df) == "lon"] <- "mdf_lon" 
+
+library(dplyr)
+
+temp_col <- c("Store_Number", "mdf_Address", "mdf_Zip_Code", "mdf_City", "mdf_County",
+              "mdf_lat", "mdf_lon", "Invoice.Item.Number", "Date", "Store.Name",
+              "Category", "Category.Name", "Vendor.Number", "Vendor.Name", "Item.Number",
+              "Item.Description", "Pack", "Bottle.Volume..ml.", "State.Bottle.Cost",
+              "State.Bottle.Retail", "Bottles.Sold", "Sale..Dollars.", "Volume.Sold..Liters.",
+              "Volume.Sold..Gallons.")
+
+temp <- left_join(master_df,df,by= "Store_Number")
+
+temp1 <- temp %>%
+  select(temp_col)
+
+
+master_all_file <- 'C:/Users/kinja/OneDrive/Desktop/All/2. SEM2/DPA/Project/Final_datasets/all_master_dt.csv'
+
+
+write.csv(temp1, master_all_file, row.names = TRUE)
+
+
+#install.packages("openxlsx")
+library("openxlsx")
+
+wb <- createWorkbook()
+addWorksheet(wb, "Worksheet 1")
+writeData(wb,sheet = 1, x = temp1)
+saveWorkbook(wb, file = master_all_file, overwrite = TRUE)
+
+######################################################################################################
+#Exploratory data analysis 
+
+
+result1 <- temp1 %>%
+  group_by(mdf_County) %>% 
+  summarize(count = n()) %>% 
+  arrange(desc(count)) 
+
+#mdf_County      count
+#<fct>           <int>
+#1 Polk          3273624
+#2 Linn          1501258
+#3 Scott         1108357
+#4 Black Hawk     999960
+#5 Johnson        910425
+#6 Pottawattamie  596696 
+
+
+plk_dt <- filter(temp1, mdf_County == "Polk")
+
+result2 <- plk_dt %>% 
+  group_by(Vendor.Number, Vendor.Name) %>% 
+  summarize(count = n()) %>% 
+  arrange(desc(count))
+
+result2_10 <- head(result2, n=10)
+
+summary(result2$count)
+
+library(ggplot2)
+result2_10 %>% 
+  ggplot(aes(x=reorder(Vendor.Name,count), y=count))+
+  geom_bar(stat="identity",fill="indian red")+
+  scale_x_discrete(breaks=0:3, labels=c("0L", "1L", "2L", "3L"))+
+  coord_flip()
+
+result3 <- plk_dt %>% 
+  group_by(Store_Number, Store.Name) %>% 
+  summarize(count = n()) %>% 
+  arrange(desc(count))
+
+head(result3, n=10)
+
+
+top_new <- filter(plk_dt, Store_Number  == 2633)
+
+result4 <- top_new %>% 
+  group_by(Category.Name, Vendor.Name) %>% 
+  summarize(count = n()) %>% 
+  arrange(desc(count))
+
+head(result4, n=10) 
+
+result5 <- top_new %>% 
+  group_by(Date,Category.Name) %>% 
+  summarize(count = n()) %>% 
+  arrange(desc(count))
+
+head(result5, n=10) 
+
+top_new$Date <- as.Date(top_new$Date, "%m/%d/%Y")
+
+temp <- top_new %>%
+  select(Date, Vendor.Name, Category.Name) 
+
+ordered_temp <- temp[order(temp$Date),]
+
+head(ordered_temp)
+
+install.packages("reshape2")
+library(reshape2)
+tmp <- dcast(ordered_temp, Date ~ Category.Name)
+
+
+dcast(babiesLong, name ~ variable, 
+      
