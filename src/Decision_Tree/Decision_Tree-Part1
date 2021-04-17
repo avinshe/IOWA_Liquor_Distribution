@@ -1,0 +1,227 @@
+#Install and import all the neccessary packages for EDA of the decision tree.
+install.packages("dplyr")
+install.packages("tidyverse")
+library(dplyr)
+library(tidyverse)
+
+#Load the dataset from the local machine and store in a dataframe.
+original_file <- 'C:/Users/kinja/OneDrive/Desktop/All/2. SEM2/DPA/Project/Final_datasets/IOWA_LIQUOR_CATOR_CLEANED_MERGED_DATA.csv'
+original_df <- read.csv(original_file) 
+
+#Duplicate the original data for future use.
+df1 <- original_df
+
+*-------------------------------------------------------------------------------------------------------------------------------*
+
+EDA Step 1:
+#Data correction:
+names(df1)[names(df1) == "AchoholTypes"] <- "AlchoholTypes"
+df1[str_detect(df1$`Item Description`, 'Root Beer'),'AchoholTypes'] <- 'Schnapps'
+df1[str_detect(df1$`Item Description`, 'Rootbeer'),'AchoholTypes'] <- 'Schnapps'
+df1[str_detect(df1$`Item Description`, 'Vodka'),'AlchoholTypes'] <- 'Vodka' 
+
+*-------------------------------------------------------------------------------------------------------------------------------*
+
+#EDA Step 2 - Missing values imputation
+#Methodology: 
+#1)Look for indices of the missing data.
+#2) Bind the missing data in a dataframe.
+#3) Imputate the missing values by finding similar patterns in rest of the data set
+
+ind <- which(is.na(df1$Sale..Dollars.)) #Indices of the missing data.
+
+datalist = list() # Create a dataframe of missing values for further use.
+for (i in 1:length(ind)) {
+  x <- c(as.character(df1$Store.Name[ind[i]]), 
+         as.character(df1$County[ind[i]]), 
+         as.character(df1$Category.Name[ind[i]]), 
+         as.character(df1$Item.Description[ind[i]]),
+         df1$Pack[ind[i]],
+         df1$Bottle.Volume..ml.[ind[i]], 
+         df1$Bottles.Sold[ind[i]],
+         df1$Volume.Sold..Litres.[ind[i]],
+         as.numeric(as.character(df1$State.Bottle.Cost[ind[i]])), 
+         df1$State.Bottle.Retail[ind[i]], 
+         df1$Sale..Dollars.[ind[i]])
+  datalist[[i]] <- x # add it to your list
+}
+big_data = do.call(rbind, datalist) 
+
+colnames(big_data) <- c("Store.Name", "County", "Category.Name", "Item.Description", "Pack", "Bottle.Volume..ml.",
+                        "Bottles.Sold", "Volume.Sold..Litres.", "State.Bottle.Cost",
+                        "State.Bottle.Retail", "Sale..Dollars.")
+
+cols <- c("Pack", "Bottle.Volume..ml.",
+          "Bottles.Sold", "Volume.Sold..Litres.", "State.Bottle.Cost",
+          "State.Bottle.Retail", "Sale..Dollars.") 
+
+temp <- df1 %>%  #Duplicate the datasets for further use
+  select(cols)
+
+print(ind) # Print missing indices.
+
+#The missing values are maily dependent in the columns Store name, County,
+#Category_name, Item_description, Bottle_volume. Hence, use these values to 
+#check if any value is present to corresponding to this data and use for imputation
+
+tmp1 <- df1 %>%                                             
+  filter(Store.Name == "Hy-Vee #3 Food and Drugstore" &      
+           County == "Scott" &                              
+           Category.Name == "Imported Vodka - Misc" &
+           Item.Description == "Pearl Wedding Cake Vodka Mini" &
+           Bottle.Volume..ml. == "500") 
+
+print(c(tmp1$State.Bottle.Cost[1], tmp1$State.Bottle.Retail[1]))
+#5.0 7.5
+
+df1$State.Bottle.Cost[13789647] <- 5.0
+df1$State.Bottle.Retail[13789647] <- 7.5 
+
+tmp2 <- df1 %>%
+  filter(Store.Name == "Hy-Vee Food Store / Carroll" & 
+           County == "Carroll" &
+           Category.Name == "Imported Vodka - Misc" &
+           Item.Description == "Pearl Wedding Cake Vodka Mini" &
+           Bottle.Volume..ml. == "500") 
+
+print(c(tmp2$State.Bottle.Cost[1], tmp2$State.Bottle.Retail[1]))
+#5.0 7.5
+
+df1$State.Bottle.Cost[13789898] <- 5.0
+df1$State.Bottle.Retail[13789898] <- 7.5 
+
+tmp3 <- df1 %>%
+  filter(Store.Name == "Hy-Vee Food Store / Indianola" & 
+           County == "Warren" &
+           Category.Name == "Imported Vodka - Misc" &
+           Item.Description == "Pearl Wedding Cake Vodka Mini" &
+           Bottle.Volume..ml. == "500") 
+
+print(c(tmp3$State.Bottle.Cost[1], tmp3$State.Bottle.Retail[1]))
+# 5.0 7.5
+
+df1$State.Bottle.Cost[13789956] <- 5.0
+df1$State.Bottle.Retail[13789956] <- 7.5 
+
+tmp4 <- df1 %>%
+  filter(Store.Name == "Mac's Liquor And Videos" & 
+           County == "Wayne" &
+           Category.Name == "Vodka 80 Proof" &
+           Item.Description == "Titos Handmade Mini" &
+           Bottle.Volume..ml. == "600") 
+
+print(c(tmp4$State.Bottle.Cost, tmp4$State.Bottle.Retail))
+#NA NA
+#ind = 16950242
+
+tmp5 <- df1 %>%
+  filter(Store.Name == "Hy-Vee Food Store #2 / Council Bluff" & 
+           County == "Pottawattamie" &
+           Category.Name == "Vodka 80 Proof" &
+           Item.Description == "Titos Handmade Mini" &
+           Bottle.Volume..ml. == "600") 
+
+
+print(c(tmp5$State.Bottle.Cost[1], tmp5$State.Bottle.Retail[1]))
+#NA NA
+#ind = 16951315
+
+tmp6 <- df1 %>%
+  filter(Store.Name == "Hy-Vee Food Store #4 / Sioux City" & 
+           County == "Woodbury" &
+           Category.Name == "Vodka 80 Proof" &
+           Item.Description == "Titos Handmade Mini" &
+           Bottle.Volume..ml. == "600") 
+
+print(c(tmp6$State.Bottle.Cost[1], tmp6$State.Bottle.Retail[1]))
+#NA NA
+#ind = 16951364 
+
+
+tmp7 <- df1 %>%
+  filter(Store.Name == "A J'S LIQUOR II" & 
+           County == "Story" &
+           Category.Name == "Vodka 80 Proof" &
+           Item.Description == "Titos Handmade Mini" &
+           Bottle.Volume..ml. == "600") 
+
+print(c(tmp7$State.Bottle.Cost[1], tmp7$State.Bottle.Retail[1]))
+#12.8 19.2 
+
+df1$State.Bottle.Cost[16952608] <- 12.8
+df1$State.Bottle.Retail[16952608] <- 19.2 
+
+tmp8 <- df1 %>%
+  filter(Store.Name == "Hy-Vee Food and Drug / Clinton" & 
+           County == "Clinton" &
+           Category.Name == "Vodka 80 Proof" &
+           Item.Description == "Titos Handmade Mini" &
+           Bottle.Volume..ml. == "600") 
+
+print(c(tmp8$State.Bottle.Cost[1], tmp8$State.Bottle.Retail[1]))
+#NA NA
+#ind <- 16955950
+
+
+tmp9 <- df1 %>%
+  filter(Store.Name == "Central City Liquor, Inc." & 
+           County == "Polk" &
+           Category.Name == "Vodka 80 Proof" &
+           Item.Description == "Titos Handmade Mini" &
+           Bottle.Volume..ml. == "600") 
+
+print(c(tmp9$State.Bottle.Cost[1], tmp9$State.Bottle.Retail[1]))
+#12.8 19.2
+
+df1$State.Bottle.Cost[16957284] <- 12.8
+df1$State.Bottle.Retail[16957284] <- 19.2 
+
+tmp10 <- df1 %>%
+  filter(Store.Name == "Hy-Vee #3 Food and Drugstore" & 
+           County == "Scott" &
+           Category.Name == "Vodka 80 Proof" &
+           Item.Description == "Titos Handmade Mini" &
+           Bottle.Volume..ml. == "600") 
+
+print(c(tmp10$State.Bottle.Cost[1], tmp10$State.Bottle.Retail[1]))
+#12.8 19.2
+
+df1$State.Bottle.Cost[16957790] <- 12.8
+df1$State.Bottle.Retail[16957790] <- 19.2
+
+#*****************************************************************************************************************************#
+#Values completely missing at Random. Use mode propery on rest of the dataset.
+missing_2 <- df1 %>%
+  filter( Category.Name == "Vodka 80 Proof" &
+            Item.Description == "Titos Handmade Mini" &
+            Bottle.Volume..ml. == "600" )
+
+table(missing_2$State.Bottle.Cost)
+
+last_element <- length(names(sort(table(missing_2$State.Bottle.Cost))))
+Bottle_cst <- as.numeric(names(sort(table(missing_2$State.Bottle.Cost)))[last_element])
+
+table(missing_2$State.Bottle.Retail)
+
+last_element1 <- length(names(sort(table(missing_2$State.Bottle.Retail))))
+Bottle_retail <- as.numeric(names(sort(table(missing_2$State.Bottle.Retail)))[last_element1])
+
+#Fill in the values in missing indices.
+remaining_ind <- c(16950242, 16951315, 16951364, 16955950)
+for (r in remaining_ind){
+  
+  df1$State.Bottle.Cost[r] <- Bottle_cst
+  df1$State.Bottle.Retail[r] <- Bottle_retail
+} 
+
+#************************************************************************************************************************************#
+#Recheck the data 
+summary(df1$State.Bottle.Cost)
+summary(df1$State.Bottle.Retail)
+
+#Imputing the missing values for Sale.Dollars column
+for (i in ind){
+  df1$Sale..Dollars.[i] <- df1$Bottles.Sold[i] * df1$State.Bottle.Retail[i]
+}
+
+summary(df1$Sale..Dollars.)

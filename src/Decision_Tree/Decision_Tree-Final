@@ -1,0 +1,455 @@
+#Install and import all the neccessary packages for EDA of the decision tree.
+install.packages("dplyr")
+install.packages("tidyverse")
+install.packages("caret")
+install.packages("rpart")
+install.packages("rpart.plot")
+install.packages("pROC")
+library(dplyr)
+library(tidyverse)
+library('caret')
+library(rpart)
+library(rpart.plot)
+library("pROC")
+
+#Load the dataset from the local machine and store in a dataframe.
+original_file <- 'C:/Users/kinja/OneDrive/Desktop/All/2. SEM2/DPA/Project/Final_datasets/IOWA_LIQUOR_CATOR_CLEANED_MERGED_DATA.csv'
+original_df <- read.csv(original_file) 
+
+#Duplicate the original data for future use.
+df1 <- original_df
+
+*-------------------------------------------------------------------------------------------------------------------------------*
+
+EDA Step 1:
+#Data correction:
+names(df1)[names(df1) == "AchoholTypes"] <- "AlchoholTypes"
+df1[str_detect(df1$`Item Description`, 'Root Beer'),'AchoholTypes'] <- 'Schnapps'
+df1[str_detect(df1$`Item Description`, 'Rootbeer'),'AchoholTypes'] <- 'Schnapps'
+df1[str_detect(df1$`Item Description`, 'Vodka'),'AlchoholTypes'] <- 'Vodka' 
+
+*-------------------------------------------------------------------------------------------------------------------------------*
+
+#EDA Step 2 - Missing values imputation
+#Methodology: 
+#1)Look for indices of the missing data.
+#2) Bind the missing data in a dataframe.
+#3) Imputate the missing values by finding similar patterns in rest of the data set
+
+ind <- which(is.na(df1$Sale..Dollars.)) #Indices of the missing data.
+
+datalist = list() # Create a dataframe of missing values for further use.
+for (i in 1:length(ind)) {
+  x <- c(as.character(df1$Store.Name[ind[i]]), 
+         as.character(df1$County[ind[i]]), 
+         as.character(df1$Category.Name[ind[i]]), 
+         as.character(df1$Item.Description[ind[i]]),
+         df1$Pack[ind[i]],
+         df1$Bottle.Volume..ml.[ind[i]], 
+         df1$Bottles.Sold[ind[i]],
+         df1$Volume.Sold..Litres.[ind[i]],
+         as.numeric(as.character(df1$State.Bottle.Cost[ind[i]])), 
+         df1$State.Bottle.Retail[ind[i]], 
+         df1$Sale..Dollars.[ind[i]])
+  datalist[[i]] <- x # add it to your list
+}
+big_data = do.call(rbind, datalist) 
+
+colnames(big_data) <- c("Store.Name", "County", "Category.Name", "Item.Description", "Pack", "Bottle.Volume..ml.",
+                        "Bottles.Sold", "Volume.Sold..Litres.", "State.Bottle.Cost",
+                        "State.Bottle.Retail", "Sale..Dollars.")
+
+cols <- c("Pack", "Bottle.Volume..ml.",
+          "Bottles.Sold", "Volume.Sold..Litres.", "State.Bottle.Cost",
+          "State.Bottle.Retail", "Sale..Dollars.") 
+
+temp <- df1 %>%  #Duplicate the datasets for further use
+  select(cols)
+
+print(ind) # Print missing indices.
+
+#The missing values are maily dependent in the columns Store name, County,
+#Category_name, Item_description, Bottle_volume. Hence, use these values to 
+#check if any value is present to corresponding to this data and use for imputation
+
+imputation <- function(store_name, county, category_name, item_description, bottle_vol){
+                        filter_data <- df1 %>%
+                                        filter(Store.Name ==  store_name& 
+                                        County ==  county &
+                                        Category.Name == category_name &
+                                        Item.Description ==  item_description &
+                                        Bottle.Volume..ml. == bottle_vol) 
+
+              print(c(filter_data$State.Bottle.Cost, filter_data$State.Bottle.Retail))
+}
+
+imputation("Central City Liquor, Inc.", "Polk", "Vodka 80 Proof", "Titos Handmade Mini", "600")
+df1$State.Bottle.Cost[13789647] <- 5.0
+df1$State.Bottle.Retail[13789647] <- 7.5 
+
+
+imputation("Hy-Vee Food Store / Carroll" , "Carroll" , "Imported Vodka - Misc" , 
+           "Pearl Wedding Cake Vodka Mini" , "500")
+df1$State.Bottle.Cost[13789898] <- 5.0
+df1$State.Bottle.Retail[13789898] <- 7.5 
+
+imputation("Hy-Vee Food Store / Indianola"  , "Warren" , "Imported Vodka - Misc" , 
+           "Pearl Wedding Cake Vodka Mini" , "500")
+df1$State.Bottle.Cost[13789956] <- 5.0
+df1$State.Bottle.Retail[13789956] <- 7.5 
+
+imputation("A J'S LIQUOR II" , "Story" , "Vodka 80 Proof"  , 
+           "Titos Handmade Mini"  , "600")
+df1$State.Bottle.Cost[16952608] <- 12.8
+df1$State.Bottle.Retail[16952608] <- 19.2 
+
+imputation("Central City Liquor, Inc."  , "Polk"  , "Vodka 80 Proof"  , 
+           "Titos Handmade Mini"  , "600")
+df1$State.Bottle.Cost[16957284] <- 12.8
+df1$State.Bottle.Retail[16957284] <- 19.2 
+
+imputation("Hy-Vee #3 Food and Drugstore" , "Scott" , "Vodka 80 Proof"  , 
+           "Titos Handmade Mini"  , "600")
+df1$State.Bottle.Cost[16957790] <- 12.8
+df1$State.Bottle.Retail[16957790] <- 19.2
+
+
+#---------------------------------------------------------------------------------------------------------------------------------#
+
+#Values completely missing at Random. Use mode propery on rest of the dataset.
+missing_2 <- df1 %>%
+  filter( Category.Name == "Vodka 80 Proof" &
+            Item.Description == "Titos Handmade Mini" &
+            Bottle.Volume..ml. == "600" )
+
+table(missing_2$State.Bottle.Cost)
+
+last_element <- length(names(sort(table(missing_2$State.Bottle.Cost))))
+Bottle_cst <- as.numeric(names(sort(table(missing_2$State.Bottle.Cost)))[last_element])
+
+table(missing_2$State.Bottle.Retail)
+
+last_element1 <- length(names(sort(table(missing_2$State.Bottle.Retail))))
+Bottle_retail <- as.numeric(names(sort(table(missing_2$State.Bottle.Retail)))[last_element1])
+
+#Fill in the values in missing indices.
+remaining_ind <- c(16950242, 16951315, 16951364, 16955950)
+for (r in remaining_ind){
+  
+  df1$State.Bottle.Cost[r] <- Bottle_cst
+  df1$State.Bottle.Retail[r] <- Bottle_retail
+} 
+
+#Recheck the data 
+summary(df1$State.Bottle.Cost)
+summary(df1$State.Bottle.Retail)
+
+#Imputing the missing values for Sale.Dollars column
+for (i in ind){
+  df1$Sale..Dollars.[i] <- df1$Bottles.Sold[i] * df1$State.Bottle.Retail[i]
+}
+
+summary(df1$Sale..Dollars.)
+
+#---------------------------------------------------------------------------------------------------------------------------------#
+#Before Feature Scaling:
+#Plots and histograms to see the nature of the data.
+
+hist(df1$Bottle.Volume..ml.,
+     main="Histogram of Volume Sold", 
+     xlab="Volume sold in litres", 
+     border="blue", 
+     col="green")
+#Bottle.Volume.ml: is right skewed.
+
+hist(df1$State.Bottle.Cost)
+#State.Bottle.Cost is right skewed.
+
+hist(df1$Bottles.Sold)
+#Bottles. Sold is right skewed
+
+#Use log tranformation to remove skewness from the data.
+df1$log_Bottle_vol <- log(df1$Bottle.Volume..ml.)
+df1$log_State.Bottle.Cost <- log(df1$State.Bottle.Cost)
+df1$log_Bottles.SOld <- log(df1$Bottles.Sold)
+df <- df1
+
+#Check histograms to see log transformed data.
+hist(log(df1$Bottle.Volume..ml.+1),
+     main="Histogram of Volume Sold", 
+     xlab="Volume sold in litres", 
+     border="blue", 
+     col="green")
+#--------------------------------------------------------------------------------------------------------------------------------#
+#Subsetting meaningfull data for further use.
+df$Date <- as.Date(df$Date, "%m/%d/%Y") 
+df <- df %>%
+  filter(df$Date >= "2017-01-01")
+
+#--------------------------------------------------------------------------------------------------------------------------------#
+#Analyse county wise sales.
+df_counties <- df %>%
+  group_by(County) %>%
+  summarise(sales_sum = sum(Sale..Dollars.)) %>%
+  arrange(desc(sales_sum), desc(County))
+df_counties 
+
+mean(df_counties$sales_sum) 
+
+#50% of total sales contributed by 5 counties
+max_contribution <- sum(df_counties$sales_sum[1:5])/sum(df_counties$sales_sum)
+max_contribution*100
+
+#Potential Counties whose sales are above average can be targeted
+filtered_df_counties <- filter(df_counties, sales_sum > mean(sales_sum))
+filtered_df_counties$percent_Sale <- filtered_df_counties$sales_sum/sum(df$Sale..Dollars.)
+
+ggplot(filtered_df_counties, aes(x = reorder(County,sales_sum) , y = sales_sum/1000000)) +
+  geom_bar(fill = "#00AFBB", stat = "identity") +
+  theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5))+
+  geom_text(aes(label = round((sales_sum/sum(df$Sale..Dollars.,na.rm = TRUE))*100,3)),size = 4,nudge_y =5)+
+  labs(x="Targeted Counties",y = "Sale in Millions", title = "County wise Purchase")+
+  coord_flip()
+
+targeted_counties <- filtered_df_counties$County
+
+#--------------------------------------------------------------------------------------------------------------------------------#
+#Feature engineering:
+#Creating labels:
+
+df_new <- df %>%
+  filter(df$Date >= "2017-01-01")
+
+main_df <- df %>%
+  group_by(AlchoholTypes, Vendor.Name.Cleaned.y) %>%
+  summarise(sales_sum = sum(Sale..Dollars.)) %>%
+  arrange(desc(sales_sum), desc(AlchoholTypes, Vendor.Name.Cleaned.y))
+
+main_df$sales_contri <- round((main_df$sales_sum/sum(main_df$sales_sum))*100,3)
+main_sales_95 <- quantile(main_df$sales_sum, probs = 0.95) 
+
+dummy <- filter(main_df, sales_sum > main_sales_95)
+cols <- c( 'AlchoholTypes' , 'Vendor.Name.Cleaned.y')
+
+dummy$combo <- apply(dummy[ , cols ] , 1 , paste , collapse = "-" ) 
+
+df_new$combo <- apply(df_new[ , cols ] , 1 , paste , collapse = "-" ) 
+
+popular1 <- dummy$combo
+
+df_new$label <- ifelse(df_new$combo %in% popular1, 'y', 'n')
+df_new$label <- as.factor(df_new$label) 
+
+#--------------------------------------------------------------------------------------------------------------------------------#
+#Feature Selection using Caret Library and Correlation plot.
+library('caret')
+library('rpart')
+
+#Numeric variables
+numVars <- c("Pack","Bottle.Volume..ml.", "State.Bottle.Cost", "State.Bottle.Retail" , 
+             "Bottles.Sold", "Sale..Dollars.", "Volume.Sold..Litres.", "Volume.Sold..Gallons.") 
+
+df_num <- df_new %>%
+  select(numVars)
+
+summary(df_num)
+
+df_num.cor <- cor(df_num)
+#Type1
+#install.packages("corrplot")
+library(corrplot)
+corrplot(df_num.cor , method = "number", type="upper")
+
+##Eliminated other variables because 
+#Bottles.Sold  shows a high correlation with Sale..Dollars., Volume.Sold..Litres, Volume.Sold..Gallons
+#Hence variablity in Sale..Dollars., Volume.Sold..Litres, Volume.Sold..Gallons can be explained by 
+#Bottles.Sold Hence these variables can be eliminated and only Bottles.Sold can be used.
+#Secondly, State Bottle Cost and State Bottle Retail shows hig correction, hence I will choose 1 among both
+#i.e State Bottle Cost.
+
+final_numVar1 <- c("Pack","Bottle.Volume..ml.", "State.Bottle.Cost", "Bottles.Sold")
+
+#Feature selection Type2
+
+set.seed(7)
+# load the library
+library(mlbench)
+library(caret)
+
+# calculate correlation matrix
+correlationMatrix <- cor(df_num.cor)
+# summarize the correlation matrix
+print(correlationMatrix)
+# find attributes that are highly corrected (ideally >0.75)
+highlyCorrelated <- findCorrelation(correlationMatrix, cutoff=0.5)
+# print indexes of highly correlated attributes
+print(highlyCorrelated)
+
+#As per caret library package and rest should be removed:
+#https://machinelearningmastery.com/feature-selection-with-the-caret-r-package/
+final_numVar2 <- c("Bottle.Volume..ml.", "State.Bottle.Cost", "Bottles.Sold")
+
+
+#--------------------------------------------------------------------------------------------------------------------------------#
+
+#MODEL 1
+#Decision tree for entire dataset inclusive of all the counties.
+
+#Divide data in train and test:
+library('caret')
+library(rpart)
+ind <- createDataPartition(y = df_new[ ,"label"], list = FALSE, p = .8)
+train <- df_new[ind, ]
+test <- df_new[-ind,]
+stopifnot(nrow(train) + nrow(test) == nrow(df_new))
+
+mod <- rpart(label ~ log_State.Bottle.Cost +log_Bottles.SOld + log_Bottle_vol,
+                  data= train,
+                  method="class",
+                  control=rpart.control(minsplit=2, cp=0))
+
+mod
+
+test$pred <- predict(mod, test, type = "class")
+test$pred_prob <- predict(mod, test, type = "prob")
+pred_new <- test$pred
+Actual <- as.factor(test$label)
+conf <- confusionMatrix(reference = Actual, data = pred_new, positive='y') 
+
+#ROC and Precision-Recall curve 
+install.packages("precrec")
+library(precrec)
+precrec_obj <- evalmod(scores = test$pred_prob, labels = test$label)
+autoplot(precrec_obj)
+
+#--------------------------------------------------------------------------------------------------------------------------------#
+#Subsets for testing:
+parameters_list = list()
+
+for(t in 1:length(targeted_counties)){
+  df_linn <- filter(df_new, County == targeted_counties[t])
+  df_linn$pred_linn <- predict(mod, df_linn, type = "class")
+  pred_new <- df_linn$pred_linn
+  Actual <- as.factor(df_linn$label)
+  cm <- confusionMatrix(reference = Actual, data = pred_new, positive='y') 
+  print(targeted_counties[t])
+  parameters_list[[t]] <- cm$byClass
+}
+
+ # add it to your list
+all_parameters = do.call(rbind, parameters_list) 
+
+all_parameters$County = targeted_counties
+
+#--------------------------------------------------------------------------------------------------------------------------------#
+
+#MODEL2 : 15 COUNTY WISE MODELS:
+#Divide data in train and test:
+library('caret')
+library(rpart)
+
+top_alcohol = list()
+
+county_models <- function(county_name){
+  dummy_df <- filter(df_new, County == county_name)
+  
+  #Label the dataset as per top 10 percentile sales of Alcohol_Vendor combination:
+  
+  main_df <- dummy_df %>%
+    group_by(AlchoholTypes, Vendor.Name.Cleaned.y) %>%
+    summarise(sales_sum = sum(Sale..Dollars.)) %>%
+    arrange(desc(sales_sum), desc(AlchoholTypes, Vendor.Name.Cleaned.y))
+  
+  main_df$sales_contri <- round((main_df$sales_sum/sum(main_df$sales_sum))*100,3)
+  main_sales_95 <- quantile(main_df$sales_sum, probs = 0.95) 
+  
+  dummy <- filter(main_df, sales_sum > main_sales_95)
+  cols <- c( 'AlchoholTypes' , 'Vendor.Name.Cleaned.y')
+  
+  dummy$combo <- apply(dummy[ , cols ] , 1 , paste , collapse = "-" ) 
+  dummy_df$combo <- apply(dummy_df[ , cols ] , 1 , paste , collapse = "-" ) 
+  popular1 <- dummy$combo
+  
+  dummy_df$new_label <- ifelse(dummy_df$combo %in% popular1, 'y', 'n')
+  dummy_df$new_label <- as.factor(dummy_df$new_label) 
+
+  ind <- createDataPartition(y = dummy_df[ ,"new_label"], list = FALSE, p = .8)
+  train <- dummy_df[ind, ]
+  test <- dummy_df[-ind,]
+
+  model <- rpart(label ~ log_State.Bottle.Cost +log_Bottles.SOld + log_Bottle_vol,
+             data= train,
+             method="class",
+             control=rpart.control(minsplit=2, cp=0))
+  model
+  test$pred <- predict(model, test, type = "class")
+  test$pred_prob <- predict(model, test, type = "prob")
+  pred_new <- test$pred
+  Actual <- as.factor(test$label)
+  conf <- confusionMatrix(reference = Actual, data = pred_new, positive='y') 
+  print(conf)
+  return(conf$byClass)
+}
+
+#Iteratively create models for top 5 Counties
+targeted_counties <- c("Polk", "Linn", "Scott","Johnson","Black Hawk")
+
+for(t in 1:length(targeted_counties)){
+  top_alcohol[[t]] <- county_models(targeted_counties[t])
+}
+
+# add it to your list
+top_parameters = do.call(rbind, top_alcohol) 
+
+#--------------------------------------------------------------------------------------------------------------------------------#
+#Model 3 : Only for Polk county. Save this model for Data Deployment through plumber library
+
+dummy_df <- filter(df_new, County == "Polk")
+#Label the dataset as per top 10 percentile sales of Alcohol_Vendor combination:
+
+main_df <- dummy_df %>%
+  group_by(AlchoholTypes, Vendor.Name.Cleaned.y) %>%
+  summarise(sales_sum = sum(Sale..Dollars.)) %>%
+  arrange(desc(sales_sum), desc(AlchoholTypes, Vendor.Name.Cleaned.y))
+
+main_df$sales_contri <- round((main_df$sales_sum/sum(main_df$sales_sum))*100,3)
+main_sales_95 <- quantile(main_df$sales_sum, probs = 0.95) 
+
+dummy <- filter(main_df, sales_sum > main_sales_95)
+cols <- c( 'AlchoholTypes' , 'Vendor.Name.Cleaned.y')
+
+dummy$combo <- apply(dummy[ , cols ] , 1 , paste , collapse = "-" ) 
+dummy_df$combo <- apply(dummy_df[ , cols ] , 1 , paste , collapse = "-" ) 
+popular1 <- dummy$combo
+
+length(unique(dummy_df$combo))
+
+dummy_df$new_label <- ifelse(dummy_df$combo %in% popular1, 'y', 'n')
+dummy_df$new_label <- as.factor(dummy_df$new_label) 
+
+ind <- createDataPartition(y = dummy_df[ ,"new_label"], list = FALSE, p = .8)
+train <- dummy_df[ind, ]
+test <- dummy_df[-ind,]
+
+model <- rpart(label ~ log_State.Bottle.Cost +log_Bottles.SOld + log_Bottle_vol,
+               data= train,
+               method="class",
+               control=rpart.control(minsplit=2, cp=0))
+model
+test$pred <- predict(model, test, type = "class")
+test$pred_prob <- predict(model, test, type = "prob")
+pred_new <- test$pred
+Actual <- as.factor(test$label)
+conf <- confusionMatrix(reference = Actual, data = pred_new, positive='y') 
+conf$byClass
+
+#Plot the decision tree:
+rpart.plot(model, extra = 106)
+
+#plot the roc curve.
+roc(test$label~test$pred_prob, plot = TRUE, print.auc = TRUE)
+
+#Save the model:
+model_path <- "C:/Users/kinja/OneDrive/Desktop/All/2. SEM2/DPA/Descision_Tree/DecisionTree/DecisionTree_Plumber"
+save(model, file = paste(model_path, "/decisiontree.rdata", sep=""))
+
